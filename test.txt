@@ -1,0 +1,8 @@
+module a;
+fn void a() {
+
+}
+
+fn void b() {
+
+}

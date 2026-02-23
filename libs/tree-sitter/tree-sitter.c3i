@@ -1,0 +1,67 @@
+module ts;
+
+// struct TSLanguage @extern("TSLanguage") {}
+typedef TSParser = void*;
+typedef TSLanguage = void*;
+typedef TSTree = void*;
+typedef TSQuery = void*;
+typedef TSQueryCursor = void*;
+enum TSQueryError {
+  TSQUERYERRORNONE,
+  TSQUERYERRORSYNTAX,
+  TSQUERYERRORNODETYPE,
+  TSQUERYERRORFIELD,
+  TSQUERYERRORCAPTURE,
+  TSQUERYERRORSTRUCTURE,
+  TSQUERYERRORLANGUAGE,
+}
+
+extern fn TSParser *parser_new() @extern("ts_parser_new");
+extern fn bool parser_set_language(TSParser *self, TSLanguage *language) @extern("ts_parser_set_language");
+extern fn void parser_delete(TSParser *self) @extern("ts_parser_delete");
+extern fn TSTree *parser_parse_string(
+  TSParser *self,
+  TSTree *old_tree,
+  char *string,
+  uint length
+) @extern("ts_parser_parse_string");
+extern fn void tree_delete(TSTree *self) @extern("ts_tree_delete");
+
+extern fn void ts_tree_print_dot_graph(TSTree *self, int file_descriptor);
+extern fn TSQuery *query_new(
+  TSLanguage *language,
+  char *source,
+  uint source_len,
+  uint *error_offset,
+  TSQueryError *error_type
+) @extern("ts_query_new");
+extern fn void ts_query_delete(TSQuery *self);
+
+extern fn TSQueryCursor *ts_query_cursor_new();
+extern fn void ts_query_cursor_exec(TSQueryCursor *self, TSQuery *query, TSNode node);
+extern fn void ts_query_cursor_delete(TSQueryCursor *self);
+
+struct TSQueryCapture {
+  TSNode node;
+  uint index;
+}
+struct TSNode {
+  uint[4] context;
+  void *id;
+  TSTree *tree;
+}
+
+struct TSQueryMatch{
+  uint id;
+  ushort pattern_index;
+  ushort capture_count;
+  TSQueryCapture *captures;
+}
+
+extern fn bool ts_query_cursor_next_match(TSQueryCursor *self, TSQueryMatch *match);
+
+extern fn TSNode ts_tree_root_node(TSTree *self);
+extern fn char *ts_node_string(TSNode self);
+extern fn char *ts_node_type(TSNode self);
+extern fn uint ts_node_start_byte(TSNode self);
+extern fn uint ts_node_end_byte(TSNode self);
