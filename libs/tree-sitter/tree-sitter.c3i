@@ -27,7 +27,7 @@ extern fn TSTree *parser_parse_string(
 ) @extern("ts_parser_parse_string");
 extern fn void tree_delete(TSTree *self) @extern("ts_tree_delete");
 
-extern fn void ts_tree_print_dot_graph(TSTree *self, int file_descriptor);
+extern fn void tree_print_dot_graph(TSTree *self, int file_descriptor) @extern("ts_tree_print_dot_graph");
 extern fn TSQuery *query_new(
   TSLanguage *language,
   char *source,
@@ -35,11 +35,11 @@ extern fn TSQuery *query_new(
   uint *error_offset,
   TSQueryError *error_type
 ) @extern("ts_query_new");
-extern fn void ts_query_delete(TSQuery *self);
+extern fn void query_delete(TSQuery *self) @extern("ts_query_delete");
 
-extern fn TSQueryCursor *ts_query_cursor_new();
-extern fn void ts_query_cursor_exec(TSQueryCursor *self, TSQuery *query, TSNode node);
-extern fn void ts_query_cursor_delete(TSQueryCursor *self);
+extern fn TSQueryCursor* query_cursor_new() @extern("ts_query_cursor_new");
+extern fn void query_cursor_exec(TSQueryCursor *self, TSQuery *query, TSNode node) @extern("ts_query_cursor_exec");
+extern fn void query_cursor_delete(TSQueryCursor *self) @extern("ts_query_cursor_delete");
 
 struct TSQueryCapture {
   TSNode node;
@@ -58,10 +58,20 @@ struct TSQueryMatch{
   TSQueryCapture *captures;
 }
 
-extern fn bool ts_query_cursor_next_match(TSQueryCursor *self, TSQueryMatch *match);
+extern fn bool query_cursor_next_match(TSQueryCursor *self, TSQueryMatch *match) @extern("ts_query_cursor_next_match");
 
-extern fn TSNode ts_tree_root_node(TSTree *self);
-extern fn char *ts_node_string(TSNode self);
-extern fn char *ts_node_type(TSNode self);
-extern fn uint ts_node_start_byte(TSNode self);
-extern fn uint ts_node_end_byte(TSNode self);
+extern fn TSNode tree_root_node(TSTree *self) @extern("ts_tree_root_node");
+extern fn char *node_string(TSNode self) @extern("ts_node_string");
+extern fn char *node_type(TSNode self) @extern("ts_node_type");
+extern fn uint node_start_byte(TSNode self) @extern("ts_node_start_byte");
+extern fn uint node_end_byte(TSNode self) @extern("ts_node_end_byte");
+extern fn TSPoint node_start_point(TSNode self) @extern("ts_node_start_point");
+
+struct TSPoint {
+  uint row;
+  uint column;
+}
+
+fn void query_cursor_set_match_limit(TSQueryCursor *self, uint limit) @extern("ts_query_cursor_set_match_limit");
+
+extern fn char* query_capture_name_for_id(TSQuery *self, uint index, uint *length) @extern("ts_query_capture_name_for_id");

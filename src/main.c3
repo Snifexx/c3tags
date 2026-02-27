@@ -1,69 +1,95 @@
 module c3tags;
 import std::io;
 import std::collections;
+import make3;
+import utils;
 import ts;
 import tree_sitter_c3;
 
-fn int main(String[] args)
-{
-  Path p = "src/main.c3".to_tpath()!!;
-  List{Path} l = {};
-  l.tinit_with_array((Path[]){p});
-  generate(l);
+alias FileRange = Range{uint};
+
+faultdef FILE_READ_ERR, TS_QUERY_ERROR;
+
+struct Module {
+  String name;
+  String full_name;
+  FileRange line_range;
+}
+
+struct Data {
+  HashMap{String, List{TagData}} tags;
+  HashMap{String, bool} modules;
+  Allocator all;
+}
+
+struct TagData {
+  Path file;
+  String signature;
+  uint line;
+}
+
+struct Tag {
+  String tag;
+  Path file;
+  uint line;
+}
+
+fn int main(String[] args) { return utils::main_handle(args, &handled_main, 2); }
+
+fn int? handled_main(String[] args) {
+  if (args.len != 2) return 1;
+  PathList l = make3::wildcard(tmem, args[1])!;
+
+  generate(l)!;
 	return 0;
 }
 
-fn void generate(PathList paths) {
-  // io::get_size()
-  // io::is_file()
-  // mem::alloc_array(Allocator allocator, $Type, usz elements)
-  // File? io::open(String filename, String mode)
-  // usz? File.read(&self, char[] buffer) @dynamic
-  // File.close()
-  bool doneOnce = false;
+fn void? generate(PathList paths) {
+  DynamicArenaAllocator all;
+  all.init(&allocator::LIBC_ALLOCATOR, 1024);
+  defer all.free();
   TSLanguage* lang = tree_sitter_c3::language();
+
+  Data data;
+  data.tags.tinit(capacity: 1024);
+  data.modules.tinit(capacity: 1024);
+  DynamicArenaAllocator data_all;
+  data_all.init(tmem, 1024);
+  data.all = &data_all;
+
+  TSParser* p = ts::parser_new();
+  defer ts::parser_delete(p);
+  ts::parser_set_language(p, lang);
+
   foreach (path : paths) {
-    //TODO report error if continue
-    if (!file::is_file(path.path_string)) continue;
-    usz? size = file::get_size(path.path_string);
-    if (catch size) continue;
-    File? f = file::open_path(path, "r");
-    if (catch f) continue;
-    char[] buf = mem::alloc_array(char, size + 1);
-    defer free(buf);
-    buf[size] = 0;
-    usz? read = f.read(buf);
+    @pool() {
+      path.path_string = path.path_string.trim();
+      usz size = file::get_size(path.path_string)!;
+      File f = file::open_path(path, "r")!;
+      defer f.close()!!;
+      char[] buf = mem::talloc_array(char, size + 1);
+      buf[size] = 0;
+      usz read = f.read(buf)!!; // fails only if there is no fread functionality (without libc)
+      if (read > size) return FILE_READ_ERR?;
 
-    TSParser* p = ts::parser_new();
-    defer ts::parser_delete(p);
-    ts::parser_set_language(p, lang);
+      TSTree* tree = ts::parser_parse_string(p, null, buf, (uint) size);
+      defer ts::tree_delete(tree);
 
-    // io::print((ZString)buf);
-
-    TSTree* tree = ts::parser_parse_string(p, null, buf, (uint) size);
-    defer ts::tree_delete(tree);
-
-    uint a;
-    TSQueryError b;
-    TSQuery* q = ts::query_new(
-      lang,
-      "(func_header name: (ident) @expr)".zstr_tcopy(),
-      "(func_header name: (ident) @expr)".len,
-      &a, &b
-    );
-    defer ts::ts_query_delete(q);
-
-    TSQueryCursor* cursor = ts::ts_query_cursor_new();
-    defer ts::ts_query_cursor_delete(cursor);
-    ts::ts_query_cursor_exec(cursor, q, ts::ts_tree_root_node(tree));
-
-    TSQueryMatch match = {};
-
-    while (ts::ts_query_cursor_next_match(cursor, &match)) {
-      TSNode node = match.captures[0].node;
-      uint start = ts::ts_node_start_byte(node);
-      uint end = ts::ts_node_end_byte(node);
-      io::printfn("Found %s", (String)buf[start .. end - 1]);
-    }
+      TSQueryError error_type;
+      uint error_offset;
+      List{Module} modules_in_this_file = modules::query_modules(lang, &all, tree, &data, path, buf, &error_type, &error_offset)!;
+      functions::query_functions(lang, &all, tree, &data, path, buf, modules_in_this_file, &error_type, &error_offset)!;
+      // TODO Maybe syntax error shouldn't outright crash!
+    };
   }
+
+  tags::generate_tags_file(data)!;
+}
+
+fn void query_functions() {}
+
+fn String TSNode.str_view(TSNode self, char[] buf) {
+    uint start = ts::node_start_byte(self);
+    uint end = ts::node_end_byte(self);
+    return ((String)buf[start .. end - 1]);
 }
