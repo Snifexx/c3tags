@@ -8,7 +8,7 @@ import tree_sitter_c3;
 const String QUERY_STR @private = `([(func_definition "fn" @fn (func_header name: (ident) @name) (attributes (attribute name: (at_ident) @attr)*)? body: (_) @body) (global_declaration (func_declaration (func_header name: (ident) @name) (attributes (attribute name: (at_ident) @attr)*)?) @spec)])`;
 
 fn uint? query_functions(
-  TSLanguage* lang, Allocator all, TSTree* tree, Data* data,
+  TSLanguage* lang, TSTree* tree, Data* data,
   Path tags_file_path, char[] buf, List{Module} modules_in_this_file, TSQueryError* error_type,  uint* err_offset
 ) {
   // TODO Error Handling in queries
@@ -38,17 +38,19 @@ fn uint? query_functions(
     }
     uint line = ts::node_start_point(fn_name).row + 1;
     String name = fn_name.str_view(buf);
-    String signature = fn_signature(all, buf, match, is_definition);
+    data.mtx.lock()!;
+    String signature = fn_signature(data.all, buf, match, is_definition);
 
     foreach (m: modules_in_this_file) {
       if (m.line_range.contains(line)) {
-        String scoped_func = string::join(all, { m.name, "::", name }, "");
-        signature = string::format(all, "%s => %s", m.full_name, signature);
+        String scoped_func = string::join(data.all, { m.name, "::", name }, "");
+        signature = string::format(data.all, "%s => %s", m.full_name, signature);
         data.add_tag(scoped_func, tags_file_path, line, signature);
       }
     }
 
-    data.add_tag_view(name, tags_file_path, line, signature, all);
+    data.add_tag_view(name, tags_file_path, line, signature, data.all);
+    data.mtx.unlock()!;
   }
   return 0;
 }

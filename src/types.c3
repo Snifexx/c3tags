@@ -11,7 +11,7 @@ const String QUERY_STR @private = `[
 ]`;
 
 fn uint? query_types(
-  TSLanguage* lang, Allocator all, TSTree* tree, Data* data,
+  TSLanguage* lang, TSTree* tree, Data* data,
   Path tags_file_path, char[] buf, List{Module} modules_in_this_file, TSQueryError* error_type,  uint* err_offset
 ) {
   // TODO Error Handling in queries
@@ -43,15 +43,17 @@ fn uint? query_types(
     String name = type_name.str_view(buf);
     String signature = "";
 
+    data.mtx.lock()!;
     foreach (m: modules_in_this_file) {
       if (m.line_range.contains(line)) {
-        String scoped_type = string::join(all, { m.name, "::", name }, "");
-        signature = string::format(all, "in module %s", m.full_name);
+        String scoped_type = string::join(data.all, { m.name, "::", name }, "");
+        signature = string::format(data.all, "in module %s", m.full_name);
         data.add_tag(scoped_type, tags_file_path, line, signature);
       }
     }
 
-    data.add_tag_view(name, tags_file_path, line, signature, all);
+    data.add_tag_view(name, tags_file_path, line, signature, data.all);
+    data.mtx.unlock()!;
   }
   return 0;
 }

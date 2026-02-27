@@ -75,3 +75,4 @@ struct TSPoint {
 fn void query_cursor_set_match_limit(TSQueryCursor *self, uint limit) @extern("ts_query_cursor_set_match_limit");
 
 extern fn char* query_capture_name_for_id(TSQuery *self, uint index, uint *length) @extern("ts_query_capture_name_for_id");
+extern fn TSTree *tree_copy(TSTree *self) @extern("ts_tree_copy");
