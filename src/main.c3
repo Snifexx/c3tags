@@ -79,14 +79,13 @@ fn void? generate(PathList paths) {
       uint error_offset;
       List{Module} modules_in_this_file = modules::query_modules(lang, &all, tree, &data, path, buf, &error_type, &error_offset)!;
       functions::query_functions(lang, &all, tree, &data, path, buf, modules_in_this_file, &error_type, &error_offset)!;
+      types::query_types(lang, &all, tree, &data, path, buf, modules_in_this_file, &error_type, &error_offset)!;
       // TODO Maybe syntax error shouldn't outright crash!
     };
   }
 
   tags::generate_tags_file(data)!;
 }
-
-fn void query_functions() {}
 
 fn String TSNode.str_view(TSNode self, char[] buf) {
     uint start = ts::node_start_byte(self);
