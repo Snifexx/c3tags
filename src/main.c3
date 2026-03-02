@@ -41,16 +41,22 @@ struct Tag {
 fn int main(String[] args) { return utils::main_handle(args, &handled_main, 2); }
 
 fn int? handled_main(String[] args) {
-  if (args.len != 2) return 1;
+  if (args.len < 2) return 1;
   if (args[1] == "clear") {
     clear()!;
     return 0;
   }
 
-  PathList l = utils::@opt_log(
-    make3::wildcard(tmem, args[1]),
-    "[ERROR] Wildcard expansion failed: "
-  )!;
+  PathList l;
+  l.tinit();
+  foreach (i, String arg: args[1..]) {
+    Path path = utils::@opt_log(
+      path::temp(arg),
+      "[ERROR] Invalid path '%s' given as argument %d: ",
+      arg, i
+    )!;
+    l.push(path);
+  }
 
   utils::@opt_log(
     generate(l),
