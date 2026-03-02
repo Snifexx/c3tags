@@ -42,9 +42,20 @@ fn int main(String[] args) { return utils::main_handle(args, &handled_main, 2); 
 
 fn int? handled_main(String[] args) {
   if (args.len != 2) return 1;
-  PathList l = make3::wildcard(tmem, args[1])!;
+  if (args[1] == "clear") {
+    clear()!;
+    return 0;
+  }
 
-  generate(l)!;
+  PathList l = utils::@opt_log(
+    make3::wildcard(tmem, args[1]),
+    "[ERROR] Wildcard expansion failed: "
+  )!;
+
+  utils::@opt_log(
+    generate(l),
+    "[ERROR] Generation failed: "
+  )!;
 	return 0;
 }
 
@@ -126,7 +137,32 @@ fn void? handled_process_file(Path path, TSLanguage* lang, Data* data) {
   List{Module} modules_in_this_file = modules::query_modules(lang, tree, data, path, buf, &error_type, &error_offset)!;
   functions::query_functions(lang, tree, data, path, buf, modules_in_this_file, &error_type, &error_offset)!;
   types::query_types(lang, tree, data, path, buf, modules_in_this_file, &error_type, &error_offset)!;
+  macros::query_macros(lang, tree, data, path, buf, modules_in_this_file, &error_type, &error_offset)!;
   // TODO Maybe syntax error shouldn't outright crash!
+}
+
+fn void? clear() {
+  fault err = @catch(file::delete("tags"));
+  switch (err) {
+    case {}:
+      io::printn("[INFO] Removed tags file");
+    case io::FILE_NOT_FOUND: 
+      io::printn("[INFO] No tags file to remove");
+    default: 
+      io::eprint("[ERROR] Failed to remove tags file: ");
+      return err?;
+  }
+
+  err = @catch(file::delete("c3tags"));
+  switch (err) {
+    case {}:
+      io::printn("[INFO] Removed c3tags file");
+    case io::FILE_NOT_FOUND: 
+      io::printn("[INFO] No c3tags file to remove");
+    default: 
+      io::eprint("[ERROR] Failed to remove c3tags file: ");
+      return err?;
+  }
 }
 
 fn String TSNode.str_view(TSNode self, char[] buf) {

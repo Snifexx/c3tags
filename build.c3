@@ -10,7 +10,7 @@ fn int main(String[] args) {
   defer all.free();
   BuildCmd cmd;
   cmd.tinit({
-    "c3c", "compile-run",
+    "c3c", "compile",
     "-o", "build/c3tags",
     "src/*", "make3.c3"
   })
@@ -20,18 +20,21 @@ fn int main(String[] args) {
   // cmd.args.add_array({"--", "./test/test.txt"});
   // cmd.args.add_array({"--", "libs/**/*.c3i"});
   // cmd.args.add_array({"--", "make3.c3 src/**/*.c3 libs/**/*.c3i"});
-  cmd.args.add_array({"--", "make3.c3 src/**/*.c3 libs/**/*.c3i $(dirname (which c3c))/../lib/c3/std/**/*.c3" });
+  // cmd.args.add_array({"--", "make3.c3 src/**/*.c3 libs/**/*.c3i $(dirname (which c3c))/../lib/c3/std/**/*.c3" });
   // cmd.args.add_array(make3::wildcard(&all,)!!.to_targs());
 
-  if (utils::@print_err(make3::@go_rebuild_urself(args))) return 1;
+  if (utils::@catch_print(make3::@go_rebuild_urself(args))) return 1;
 
   String arg = args.len > 1 ? args[1] : "";
   switch (arg) {
     case "test":
-      if (utils::@print_err(make3::default_tests("test", {"make3.c3"}))) return 2;
-      break;
+      if (utils::@catch_print(make3::default_tests("test", {"make3.c3"}))) return 2;
+    case "clear":
+      cmd.args.add_array({"--", "clear"});
+      if (utils::@catch_print(make3::run(cmd.build()))) return 2;
     default:
-      if (utils::@print_err(make3::run(cmd.build()))) return 2;
+      // cmd.args.add_array({"--", "make3.c3 src/**/*.c3 libs/**/*.c3i $(dirname (which c3c))/../lib/c3/std/**/*.c3" });
+      if (utils::@catch_print(make3::run(cmd.build()))) return 2;
   }
 	return 0;
 }
