@@ -7,9 +7,13 @@ import utils;
 import ts;
 import tree_sitter_c3;
 
+//
+// TODO: Prob better logging
+//
+
 alias FileRange = Range{uint};
 
-faultdef FILE_READ_ERR, TS_QUERY_ERROR;
+faultdef FILE_READ_ERR, TS_QUERY_ERROR, PARSE_ERR;
 
 struct Module {
   String name;
@@ -36,6 +40,13 @@ struct Tag {
   String tag;
   Path file;
   uint line;
+}
+
+struct ProcessArgs {
+  uint i;
+  Path path;
+  TSLanguage* lang;
+  Data* data;
 }
 
 fn int main(String[] args) { return utils::main_handle(args, &handled_main, 2); }
@@ -81,13 +92,17 @@ fn void? generate(PathList paths) {
   data.cond_var.init()!;
   defer data.cond_var.destroy()!!;
 
-
-  FixedThreadPool pool;
-  pool.init((paths.len()/32) + 1)!;
+  ThreadPool{10} pool;
+  pool.init()!;
 
   foreach (i, path : paths) {
-    //uint i, Path path, TSParser* p, Mutex p_mtx, TSLanguage* lang, Data* data
-    pool.push(&process_file, (uint) i, path, lang, &data)!;
+    ProcessArgs args = {
+      .i = (uint) i,
+      .path = path,
+      .lang = lang,
+      .data = &data,
+    };
+    pool.push(&process_file, &args)!;
   }
 
   data.mtx.lock()!;
@@ -98,17 +113,18 @@ fn void? generate(PathList paths) {
   tags::generate_tags_file(data)!;
 }
 
-fn void process_file(any[] args) {
+fn int process_file(void* args) {
   char[1024*1024] buf;
   OnStackAllocator all;
   all.init(&buf, &allocator::LIBC_ALLOCATOR);
 
 
   mem::@pool_init(&all, 1024) {
-    uint i = *anycast(args[0], uint)!!;
-    Path path = *anycast(args[1], Path)!!;
-    TSLanguage* lang = *anycast(args[2], TSLanguage*)!!;
-    Data* data = *anycast(args[3], Data*)!!;
+    ProcessArgs* process_args = args;
+    uint i = process_args.i;
+    Path path = process_args.path;
+    TSLanguage* lang = process_args.lang;
+    Data* data = process_args.data;
 
     if (catch err = handled_process_file(path, lang, data)) {
       io::eprintfn("ERROR IN THREAD %d FOR FILE '%s'", i, path.path_string.trim());
@@ -119,8 +135,9 @@ fn void process_file(any[] args) {
     data.cond_var.signal()!!;
     data.mtx.unlock()!!;
   };
+  return 0;
 }
-//alias ThreadPoolFn = fn void(any[] args);
+
 fn void? handled_process_file(Path path, TSLanguage* lang, Data* data) {
   path.path_string = path.path_string.trim();
   usz size = file::get_size(path.path_string)!;
@@ -144,6 +161,7 @@ fn void? handled_process_file(Path path, TSLanguage* lang, Data* data) {
   functions::query_functions(lang, tree, data, path, buf, modules_in_this_file, &error_type, &error_offset)!;
   types::query_types(lang, tree, data, path, buf, modules_in_this_file, &error_type, &error_offset)!;
   macros::query_macros(lang, tree, data, path, buf, modules_in_this_file, &error_type, &error_offset)!;
+  faults::query_faults(lang, tree, data, path, buf, modules_in_this_file, &error_type, &error_offset)!;
   // TODO Maybe syntax error shouldn't outright crash!
 }
 

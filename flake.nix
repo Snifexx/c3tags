@@ -36,6 +36,7 @@
         tree-sitter
       ];
 
+      # Hook because I use fish
       shellHook = ''
         export SHELL="$(which fish)"
         $SHELL 

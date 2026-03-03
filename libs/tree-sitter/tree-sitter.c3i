@@ -58,6 +58,12 @@ struct TSQueryMatch{
   TSQueryCapture *captures;
 }
 
+struct TSTreeCursor {
+  void *tree;
+  void *id;
+  uint[3] context;
+}
+
 extern fn bool query_cursor_next_match(TSQueryCursor *self, TSQueryMatch *match) @extern("ts_query_cursor_next_match");
 
 extern fn TSNode tree_root_node(TSTree *self) @extern("ts_tree_root_node");
@@ -76,3 +82,15 @@ fn void query_cursor_set_match_limit(TSQueryCursor *self, uint limit) @extern("t
 
 extern fn char* query_capture_name_for_id(TSQuery *self, uint index, uint *length) @extern("ts_query_capture_name_for_id");
 extern fn TSTree *tree_copy(TSTree *self) @extern("ts_tree_copy");
+
+extern fn TSTreeCursor tree_cursor_new(TSNode node) @extern("ts_tree_cursor_new");
+extern fn void tree_cursor_delete(TSTreeCursor *self) @extern("ts_tree_cursor_delete");
+extern fn void tree_cursor_reset(TSTreeCursor *self, TSNode node) @extern("ts_tree_cursor_reset");
+extern fn TSNode tree_cursor_current_node(TSTreeCursor *self) @extern("ts_tree_cursor_current_node");
+extern fn bool tree_cursor_goto_first_child(TSTreeCursor *self) @extern("ts_tree_cursor_goto_first_child");
+extern fn bool tree_cursor_goto_next_sibling(TSTreeCursor *self) @extern("ts_tree_cursor_goto_next_sibling");
+extern fn bool tree_cursor_goto_parent(TSTreeCursor *self) @extern("ts_tree_cursor_goto_parent");
+
+extern fn bool node_is_named(TSNode self) @extern("ts_node_is_named");
+
+extern fn TSNode node_child_by_field_name(TSNode self, char *name, uint name_length) @extern("ts_node_child_by_field_name");
